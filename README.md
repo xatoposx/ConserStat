@@ -4,3 +4,5 @@ This is repo for doing exploratory analysis on student scores in a Spanish educa
 Currently it is heavily a work-in-progress and for the time being documentation might be out-of-sync.
 
 The actual initial README document is called LEEME.md.
+
+Data files (`Calificaciones 2013_2014.txt` containing raw data and the corresponding tidy dataset `notas_2013_2014.csv`) are deleted for privacy.
