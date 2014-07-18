@@ -4,20 +4,34 @@ library(xtable)
 source("limpiar.R")
 
 ## CONSTANTES
-# Importadas desde 'limpiar.R' 
+# @data.frame: califaciones. Léase README.md para descripción de sus variables 
 datos <- notas2013
+
+# @character: nombres de departamento
 departamentos <- levels(departamentosDF$Departamento)
+
+# @character: nombres de asignaturas
 asignaturas <- levels(asignaturasDF$Asignatura)
 
-# Parámetros para gráficos ggplot
+# Número de columnas en graficos ggplot con facetas 
 ncolFacets <- 2
 
 ## FUNCIONES DE CREACIÓN DE GRÁFICOS
 GraficarAprobadosPorAsignatura <- function(asignatura) {
         # Produce gráfico de aprobados/suspensos por curso en la asignatura dada
 	# @ character, character -> ggplot
-	g <- ggplot(Seleccionar(asignatura), aes(x=Curso, fill=Aprobado)) +
+	g <- ggplot(Seleccionar(asignatura, dpto=FALSE), 
+		    aes(x=Curso, fill=Aprobado)) +
 	facet_wrap(~ Asignatura, ncol=ncolFacets, scales="fixed") +
+	labs(y="Número de Alumnos")
+}
+
+GraficarAprobadosPorDepartamento <- function(departamento) {
+        # Produce gráfico de aprobados/suspensos por curso en el departamento dado
+	# @ character, character -> ggplot
+	g <- ggplot(Seleccionar(departamento, dpto=TRUE), 
+		    aes(x=Curso, fill=Aprobado)) +
+	facet_wrap(~ Departamento, ncol=ncolFacets, scales="fixed") +
 	labs(y="Número de Alumnos")
 }
 
@@ -40,7 +54,7 @@ DibujarPoligono <- function(grafico, grupo) {
 	grafico + geom_freqpoly(aes_string(group=grupo, colour=grupo))
 }
 
-GuardarGrafico <- function(grafico, directorio="graficos") {
+GuardarGrafico <- function(grafico, directorio=".") {
 	# Guarda el gráfico como fichero png
 	# @ ggplot -> IO
 	atPng <- AtributosPng(grafico)
@@ -48,14 +62,15 @@ GuardarGrafico <- function(grafico, directorio="graficos") {
 	ancho <- atPng$ancho
 	alto <- atPng$alto
 
-	nombreFichero <- file.path(directorio, paste(nombreGrafico, "png", sep="."))
+	nombreFichero <- file.path(directorio, 
+				   paste(nombreGrafico, "png", sep="."))
 	png(nombreFichero, ancho, alto)
 	print(grafico)
 	dev.off()
 }
 
 AtributosPng <- function(grafico) {
-	# Computa atributos adecuadas de la imagen pgn a partir del grafico dado
+	# Computa atributos adecuadas a la imagen pgn a partir del grafico dado
 	# [@IMPL: Se usa introspección. La implementación es más compleja de
 	# de este modo, pero permite desacoplar las funciones]
 	# ggplot -> list
@@ -85,30 +100,23 @@ AtributosPng <- function(grafico) {
 }
 
 ## FUNCIONES DE CREACIÓN DE TABLAS
-TabularAprobadosPorAsignaturaOLD <- function(asignatura) {
-	if (length(asignatura) == 1) {
-		L <- list(xtabs(~ Aprobado + Curso, Seleccionar(asignatura)))
-		names(L) <- asignatura
-		L
-
-	} else {
-		L <- sapply(asignatura, TabularAprobadosPorAsignatura, 
-			    USE.NAMES=FALSE)
-	}
-
-	if (tipoTabla == "latex")
-		L <- lapply(L, xtable, digits=0, type="latex")
-
-	return(L) # !!! TODO: FOR DEBUGGING PURPOSES
-}
-
 TabularAprobadosPorAsignatura <- function(asignatura) {
 	# Produce tablas de aprobados/suspensos por curso en la asignatura dada
 	# [&IMPL: Se devuelve como elemento de lista para emular vectorización]
 	# @ character -> list(table)
-	L <- lapply(lapply(asignatura, Seleccionar), 
+	L <- lapply(lapply(asignatura, Seleccionar, dpto=FALSE), 
 		    xtabs, formula= ~ Aprobado + Curso)
 	names(L) <- asignatura
+	L
+}
+
+TabularAprobadosPorDepartamento <- function(departamento) {
+	# Produce tablas de aprobados/suspensos por curso en la asignatura dada
+	# [&IMPL: Se devuelve como elemento de lista para emular vectorización]
+	# @ character -> list(table)
+	L <- lapply(lapply(departamento, Seleccionar, dpto=TRUE), 
+		    xtabs, formula= ~ Aprobado + Curso)
+	names(L) <- departamento
 	L
 }
 
@@ -158,37 +166,64 @@ AtributosTabla <- function(tabla) {
 	list(nombreTabla=SinAcentos(nombreDepartamento))
 }
 
-# FUNCIONES COMPARTIDAS DE AYUDA
+## FUNCIONES COMPARTIDAS DE AYUDA
 InputValido <- function(input) {
 	# Verifica que el input es valido
 	# @ character -> boolean
 	input %in% asignaturas || input %in% departamentos
 }
 
-Seleccionar <- function(asignatura, data=datos) {
-	# Selecciona las observaciones en los datos relativos a asignatura 
+Seleccionar <- function(especialidad, dpto=TRUE, data=datos) {
+	# Selecciona las observaciones en los datos relativos a especialidad 
+	# Si los nombres de asignatura y departamento coinciden se selecciona
+	# por defecto el departamento, salvo que 'dpto' sea FALSE. 
 	# (se omiten NAs)
 	# @ character, data.frame -> data.frame | IO_Error
-	if (!InputValido(asignatura))
-		stop("Asignatura inexistente. Compruebe ortografía", call.=TRUE)
+	if (!InputValido(especialidad))
+		stop("Especialidad inexistente. Compruebe ortografía", 
+		     call.=TRUE)
 
-	na.omit(data[data$Asignatura %in% asignatura, ])
+	variable <- DeterminarVariable(especialidad, dpto)
+	na.omit(data[data[[variable]] %in% especialidad, ])
+}
+
+DeterminarVariable <- function(especialidad, dpto=TRUE) {
+	# Determina si la especilidad dada es una asignatura o un departamento
+	# Si es ambas cosas y dpto=TRUE (por defecto) se considera departamento;
+	# asignatura en caso contrario.
+	# ASUME: input valido = es una asignatura o departamento
+	# @ character -> character
+	if (!especialidad %in% asignaturas)
+		res <- "Departamento"	
+	else if (!especialidad %in% departamentos)
+		res <- "Asignatura"
+	else if (dpto == TRUE)
+		res <- "Departamento"
+	else
+		res <- "Asignatura"
+
+	res
 }
 
 AsignaturasEn <- function(departamento, data=datos) {
 	# Devuelve las asignaturas de que consta el departamento dado
+	# (Se omiten observaciones con NA en Nota para evitar introducir
+	# asignaturas cuyos alumnos no hayan sido actualmente evaluados)
 	# @ character -> factor
 	if (!InputValido(departamento)) {
-		stop("Departamento inexistente. Compruebe ortografía", call.=TRUE)
+		stop("Departamento inexistente. Compruebe ortografía", 
+		     call.=TRUE)
 	}
 		
-	unique(data[data$Departamento == departamento, "Asignatura"])
+	unique(with(data, 
+		    data[Departamento == departamento & !is.na(Nota), 
+			 "Asignatura"]))
 }
 
 DeterminarDepartamento <- function(asignaturas) {
-	# Devuelve el nombre del departmento que integran las asignaturas
-        # dadas, si ellas son TODAS las integrantes de un departamento; 
-	# en caso contrario devuelve NULL
+	# Devuelve el nombre del departmento que integran las 
+	# asignaturas dadas, si ellas son TODAS las actuales integrantes 
+	# de un departamento; en caso contrario devuelve NULL
 	# @ character -> character | NULL
 	# !!! TODO: Como función local de parámetros PNG ??
 	departamento <- NULL
@@ -215,71 +250,3 @@ SinAcentos <- function(palabras) {
 	iconv(palabras, "UTF-8", "ASCII//TRANSLIT")
 }
 
-## WRAPPERS PARA INTERFAZ DE USUARIO: FACHADA
-# !!! TODO: Revisar estas funciones
-DibujarAprobadosPorAsignatura <- 
-function(asignaturas, tipo="apilado", guardar="si") {
-	# Dibuja gráfico de aprobados/suspensos por curso en las asignaturas dadas
-	#
-	# Args:
-	#     asignaturas: vector de nombre(s) de asignatura(s)
-	#     tipo:        tipo de gráfico: "apilado" | "agrupado" | "polinomio"
-	#                  Se muestra un gráfico de barras apiladas por defecto
-	#     guardar:     "si" | "no"
-	#                  El gráfico se guarda por defecto en un fichero pgn con el
-	#                  nombre de las asignaturas
-	#
-	# Returns:
-	#     gráfico construido con ggplot. Crea fichero PNG por defecto
-	if (tipo == "apilado")
-		res <- 
-		DibujarBarrasApiladas(GraficarAprobadosPorAsignatura(asignaturas))
-	if (tipo == "agrupado")
-		res <- 
-		DibujarBarrasAgrupadas(GraficarAprobadosPorAsignatura(asignaturas))
-	if (tipo == "poligono")
-		res <- 
-		DibujarPoligono(GraficarAprobadosPorAsignatura(asignatura))
-
-	if (guardar == "si")
-		GuardarGrafico(res)
-
-	print(res)
-}
-
-MostrarTablaDeAprobadosPorAsignatura <- 
-function(asignaturas, guardar="si") {
-	# Muestra tabla de aprobados/suspensos por curso en las asignaturas dadas
-	#
-	# Args:
-	#     asignaturas: vector de nombre(s) de asignatura(s)
-	#     guardar:     "si" | "no"
-	#                  La tabla se guarda por defecto en un fichero tex con el
-	#                  nombre de las asignaturas seguido del sufijo '.tbl' 
-	# Returns:
-	#     tabla en consola. Crea fichero LaTeX por defecto
-	tt <- TabularAprobadosPorAsignatura(asignaturas)
-
-	if (guardar == "si")
-		GuardarTabla(invisible(LatexizarTabla(t)))
-
-	tt
-}
-
-CrearGraficosDeAprobadosPorAsignatura <- 
-function(tipo="barras") {
-	# Genera gráficos de aprobados/suspensos por curso para las asignaturas
-	# de todos los departamentos. Los resultados se guardan en sendos ficheros
-	# con nombre 'departamento'.png en el subdirectorio 'graficos'.
-	#
-	# Args:
-	#
-	#     tipo: tipo de gráfico: "apilado" | "agrupado" | "polinomio"
-	#           Se genera un gráfico de barras apiladas por defecto
-	# Returns:
-	#     ficheros de imagenes png
-	lapply(departamentos,
-	       function(dpto) DibujarAprobadosPorAsignatura(AsignaturasEn(dpto),
-							    tipo=tipo,
-							    guardar="si"))
-}
