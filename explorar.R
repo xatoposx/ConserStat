@@ -16,55 +16,36 @@ asignaturas <- levels(asignaturasDF$Asignatura)
 # Número de columnas en graficos ggplot con facetas 
 ncolFacets <- 2
 
-## FUNCIONES DE CREACIÓN DE GRÁFICOS
-GraficarAprobadosPorAsignatura <- function(asignatura) {
-        # Produce gráfico de aprobados/suspensos por curso en la asignatura dada
-	# @ character, character -> ggplot
-	g <- ggplot(Seleccionar(asignatura, dpto=FALSE), 
-		    aes(x=Curso, fill=Aprobado)) +
-	facet_wrap(~ Asignatura, ncol=ncolFacets, scales="fixed") +
+## FUNCIONES PARA GRÁFICOS
+Graficar <- function(x, y, grupo, subconjunto, tipoGrafico="apilado") {	
+	# Produce gráfico y versus x con facetas por grupo sobre una
+	# selección de los datos por el subconjunto dado
+	# @ string, string, string, string, string -> ggplot
+	# Ejemplo: Graficar("Curso", "Aprobado", "Asignatura", "Piano", "apilado")
+	dpto    <- grupo == "Departamento"
+	formula <- as.formula(paste("~", grupo))
+
+	g <- ggplot(Seleccionar(subconjunto, dpto=dpto), aes_string(x=x, fill=y)) +
+	facet_wrap(formula, ncol=ncolFacets, scales="fixed") +
 	labs(y="Número de Alumnos")
+
+	if (tipoGrafico == "apilado")
+		g <- g + geom_bar(position="stack")
+	else if (tipoGrafico == "agrupado")
+		g <- g + geom_bar(position="dodge")
+	else if (tipoGrafico == "polinomio")
+		g <- g + geom_freqpoly(aes_string(group=grupo, colour=grupo))
 }
 
-GraficarAprobadosPorDepartamento <- function(departamento) {
-        # Produce gráfico de aprobados/suspensos por curso en el departamento dado
-	# @ character, character -> ggplot
-	g <- ggplot(Seleccionar(departamento, dpto=TRUE), 
-		    aes(x=Curso, fill=Aprobado)) +
-	facet_wrap(~ Departamento, ncol=ncolFacets, scales="fixed") +
-	labs(y="Número de Alumnos")
-}
-
-DibujarBarrasApiladas <- function(grafico) {
-	# Dibuja un gráfico de barras apiladas a partir de un ggplot sin capas
-	# @ ggplot -> ggplot
-	grafico + geom_bar(position="stack")
-}
-
-DibujarBarrasAgrupadas <- function(grafico) {
-	# Dibuja un gráfico de barras agrupadas a partir de un ggplot sin capas
-	# @ ggplot -> ggplot
-	grafico + geom_bar(position="dodge")
-}
-
-DibujarPoligono <- function(grafico, grupo) {
-	# Dibuja un polinomio de frecuencias para el grupo dado a partir 
-	# de un ggplot sin capas
-	# @ ggplot, character -> ggplot
-	grafico + geom_freqpoly(aes_string(group=grupo, colour=grupo))
-}
-
-GuardarGrafico <- function(grafico, directorio=".") {
+GuardarGrafico <- function(grafico, fichero, directorio="graficos") {
 	# Guarda el gráfico como fichero png
 	# @ ggplot -> IO
 	atPng <- AtributosPng(grafico)
-	nombreGrafico <- atPng$nombreGrafico
 	ancho <- atPng$ancho
 	alto <- atPng$alto
+	ruta <- file.path(directorio, paste(fichero, "png", sep="."))
 
-	nombreFichero <- file.path(directorio, 
-				   paste(nombreGrafico, "png", sep="."))
-	png(nombreFichero, ancho, alto)
+	png(ruta, ancho, alto)
 	print(grafico)
 	dev.off()
 }
@@ -73,9 +54,9 @@ AtributosPng <- function(grafico) {
 	# Computa atributos adecuadas a la imagen pgn a partir del grafico dado
 	# [@IMPL: Se usa introspección. La implementación es más compleja de
 	# de este modo, pero permite desacoplar las funciones]
-	# ggplot -> list
+	# @ ggplot -> list
 
-	# Dimesiones !!! TODO - Eliminar magic numbers
+	# !!! TODO - Eliminar magic numbers
 	ancho <- 460 ; alto <- 460 # ancho, alto por defecto (pixels)
 
 	asignaturasEnGrafico <- unique(grafico$data$Asignatura)
@@ -89,38 +70,27 @@ AtributosPng <- function(grafico) {
 	ancho <- ancho + ancho * escala
 	alto <- rellenoSuperior + rellenoInferior + altoCelda * numFilas 
 
-	# Nombre imagen
-        nombreDepartamento <- DeterminarDepartamento(asignaturasEnGrafico)
-	if (is.null(nombreDepartamento)) {
-		nombreDepartamento <- 
-		Reduce(function(x, y) paste(x, y, sep="-"), asignaturasEnGrafico)
-	}
-
-	list(ancho=ancho, alto=alto, nombreGrafico=SinAcentos(nombreDepartamento))
+	list(ancho=ancho, alto=alto)
 }
 
-## FUNCIONES DE CREACIÓN DE TABLAS
-TabularAprobadosPorAsignatura <- function(asignatura) {
-	# Produce tablas de aprobados/suspensos por curso en la asignatura dada
-	# [&IMPL: Se devuelve como elemento de lista para emular vectorización]
-	# @ character -> list(table)
-	L <- lapply(lapply(asignatura, Seleccionar, dpto=FALSE), 
-		    xtabs, formula= ~ Aprobado + Curso)
-	names(L) <- asignatura
-	L
+## FUNCIONES PARA TABLAS
+Tabular <- function(x, y, grupo, subconjunto, tablaLatex=FALSE) {
+	# Produce tabla y versus x por grupo sobre una selección de los 
+	# datos por el subconjunto dado
+	# @ string, string, string, string, boolean -> table | xtable
+	# Ejemplo: Tabular("Curso", "Aprobado", "Asignatura", "Piano", TRUE)
+	dpto    <- grupo == "Departamento"
+	formula <- as.formula(paste("~", y, "+", x))
+
+	L <- lapply(lapply(subconjunto, Seleccionar, dpto=dpto), 
+		    xtabs, formula=formula)
+	names(L) <- subconjunto
+
+        L <- if(tablaLatex) TablaLatex(L) else L	
+
 }
 
-TabularAprobadosPorDepartamento <- function(departamento) {
-	# Produce tablas de aprobados/suspensos por curso en la asignatura dada
-	# [&IMPL: Se devuelve como elemento de lista para emular vectorización]
-	# @ character -> list(table)
-	L <- lapply(lapply(departamento, Seleccionar, dpto=TRUE), 
-		    xtabs, formula= ~ Aprobado + Curso)
-	names(L) <- departamento
-	L
-}
-
-LatexizarTabla <- function(tablas) {
+TablaLatex <- function(tablas) {
 	# Devuelve tabla con etiquetas de LaTeX 
 	# @ list(table) -> list(xtable)
 	tt <- lapply(tablas, xtable, digits=0, type="latex")
@@ -131,39 +101,69 @@ LatexizarTabla <- function(tablas) {
 	return(tt)
 }
 
-GuardarTabla <- function(tablas, directorio="tablas") {
+GuardarTabla <- function(tablas, fichero, directorio="tablas") {
 	# Guarda la tabla latex
-	# list(xtable) -> IO
-	atTabla <- AtributosTabla(tablas)
-	nombreTabla <- atTabla$nombreTabla
+	# @ list(xtable) -> IO
+	if (!"xtable" %in% class(tablas[[1]])) 
+		tablas <- TablaLatex(tablas)
 
-	nombreFichero <- file.path(directorio, 
-				   paste(nombreTabla, "tbl", "tex", sep="."))
+	ruta <- file.path(directorio, paste(fichero, "tbl", "tex", sep="."))
 	
-	# imprime primera tabla a fichero y si hay más de una las añade
-	# al mismo fichero [Permite manejar mejor grupos de asignaturas] 
-	print(tablas[[1]], file=nombreFichero, table.placement="H")
+	# imprime primero tabla a fichero y si hay más de una las añade
+	# al mismo fichero
+	print(tablas[[1]], file=ruta, table.placement="H")
 
 	len <- length(tablas)
 	if (len > 1) {
 		restoTablas <- tail(tablas, len - 1)
-		lapply(restoTablas, print, file=nombreFichero, append=TRUE,
+		lapply(restoTablas, print, file=ruta, append=TRUE,
 		       table.placement="H")
 	}
 }
 
-AtributosTabla <- function(tabla) {
-	# Computa atributos adecuados de la tabla dada
-	# list(xtable) -> list
-	asignaturasEnTabla <- names(tabla)
-	nombreDepartamento <- DeterminarDepartamento(asignaturasEnTabla)
+## FUNCIONES GENÉRICAS
+Mostrar <- function(objeto) {
+	# Muestra objeto (un envoltorio de conveniencia para usuario)
+	print(objeto)
+}
 
-	if (is.null(nombreDepartamento)) {
-		nombreDepartamento <- 
-		Reduce(function(x, y) paste(x, y, sep="-"), asignaturasEnTabla)
-	}
+Guardar <- function(fc) {
+	# Guarda en disco el resultado de aplicar una funcion de
+	# graficación o tabulación
+	# La implementación se basa en la siguiente estrategia:
+	# 1. Obtiene de la llamada a función (fc) los datos precisos
+	#    para producir un nombre de fichero apropiado.
+	# 2. Evalúa la llamada a función y pasa el resultado a funciones
+	#    especializadas para guardar gráficos o tablas.
+	mc <- match.call()
+	mf <- mc[[-1]] # La función llamada
 
-	list(nombreTabla=SinAcentos(nombreDepartamento))
+	c <- as.character(mf) 
+	fun  <- c[1] 
+	args <- c[-1] 
+
+	if (fun == "Tabular")
+	    params <- names(formals(Tabular))
+	if (fun == "Graficar")
+	    params <- names(formals(Graficar))
+
+	# Menos params cuando no todos los argumentos posibles fueron pasados
+	if (length(args) != length(params))
+	    params <- params[1:length(args)]
+
+	# args limpios: sin signos de llamadas internas a funciones
+	aL <- mapply(function(p, r, x) gsub(p, r, x), "[[:punct:]]", "", args)
+	names(aL) <- params
+
+	# Construye nombre de fichero
+	nombreFichero <- paste(aL["y"], "Por", aL["x"], "_", aL["grupo"], "_", 
+			       aL["subconjunto"], sep="")
+
+	# Llama a la funcion especializada
+	if (fun == "Tabular")
+		GuardarTabla(eval(mf), nombreFichero)
+	if (fun == "Graficar")
+		GuardarGrafico(eval(mf), nombreFichero)
 }
 
 ## FUNCIONES COMPARTIDAS DE AYUDA
@@ -187,6 +187,7 @@ Seleccionar <- function(especialidad, dpto=TRUE, data=datos) {
 	na.omit(data[data[[variable]] %in% especialidad, ])
 }
 
+# !!! TODO: Es esto todavía necesario?
 DeterminarVariable <- function(especialidad, dpto=TRUE) {
 	# Determina si la especilidad dada es una asignatura o un departamento
 	# Si es ambas cosas y dpto=TRUE (por defecto) se considera departamento;
@@ -220,31 +221,12 @@ AsignaturasEn <- function(departamento, data=datos) {
 			 "Asignatura"]))
 }
 
-DeterminarDepartamento <- function(asignaturas) {
-	# Devuelve el nombre del departmento que integran las 
-	# asignaturas dadas, si ellas son TODAS las actuales integrantes 
-	# de un departamento; en caso contrario devuelve NULL
-	# @ character -> character | NULL
-	# !!! TODO: Como función local de parámetros PNG ??
-	departamento <- NULL
-	ass <- list() 
-
-	for (dpto in departamentos) {
-		ass[[dpto]] <- AsignaturasEn(dpto)
-		if (!anyNA(pmatch(ass[[dpto]], asignaturas))) {
-		    departamento <- dpto
-		    break
-		}
-	}
-
-	departamento
-}
-
 SinGuiones <- function(palabras) {
 	# Substituye guiones por espacios
 	gsub("(.)[_-](.)", "\\1 \\2", palabras)
 }
 
+# No usada en la actual implementacion. Se mantiene por conveniencia
 SinAcentos <- function(palabras) {
 	# Elimina signos diacríticos 
 	iconv(palabras, "UTF-8", "ASCII//TRANSLIT")
