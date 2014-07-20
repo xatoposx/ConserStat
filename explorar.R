@@ -22,6 +22,18 @@ Graficar <- function(x, y, grupo, subconjunto, tipoGrafico="apilado") {
 	# selección de los datos por el subconjunto dado
 	# @ string, string, string, string, string -> ggplot
 	# Ejemplo: Graficar("Curso", "Aprobado", "Asignatura", "Piano", "apilado")
+
+	# Manejo de errores 
+	# TODO!!! separar a función genérica y refinar según casos de uso
+	if (!all(c(x, y, grupo) %in% names(datos)))
+		stop("Los datos no contienen alguna de las variables x, y, grupo.")
+	if (!(subconjunto %in% asignaturas || subconjunto %in% departamentos))
+		stop("La especialidad no existe en departamentos o asignaturas")
+	if (grupo == "Departamento" && !subconjunto %in% departamentos)
+		stop("Si grupo es \"Departamento\", subconjunto debe serlo también.")
+	if (grupo == "Asignatura" && !subconjunto %in% asignaturas)
+		stop("Si grupo es \"Asignatura\", subconjunto debe serlo también.")
+
 	dpto    <- grupo == "Departamento"
 	formula <- as.formula(paste("~", grupo))
 
@@ -35,9 +47,11 @@ Graficar <- function(x, y, grupo, subconjunto, tipoGrafico="apilado") {
 		g <- g + geom_bar(position="dodge")
 	else if (tipoGrafico == "polinomio")
 		g <- g + geom_freqpoly(aes_string(group=grupo, colour=grupo))
+
+	return(g)
 }
 
-GuardarGrafico <- function(grafico, fichero, directorio="graficos") {
+GuardarGrafico <- function(grafico, fichero="grafico", directorio="graficos") {
 	# Guarda el gráfico como fichero png
 	# @ ggplot -> IO
 	atPng <- AtributosPng(grafico)
@@ -79,6 +93,18 @@ Tabular <- function(x, y, grupo, subconjunto, tablaLatex=FALSE) {
 	# datos por el subconjunto dado
 	# @ string, string, string, string, boolean -> table | xtable
 	# Ejemplo: Tabular("Curso", "Aprobado", "Asignatura", "Piano", TRUE)
+
+	# Manejo de errores 
+	# TODO!!! separar a función genérica y refinar según casos de uso
+	if (!all(c(x, y, grupo) %in% names(datos)))
+		stop("Los datos no contienen alguna de las variables x, y, grupo.")
+	if (!(subconjunto %in% asignaturas || subconjunto %in% departamentos))
+		stop("La especialidad no existe en departamentos o asignaturas")
+	if (grupo == "Departamento" && !subconjunto %in% departamentos)
+		stop("Si grupo es \"Departamento\", subconjunto debe serlo también.")
+	if (grupo == "Asignatura" && !subconjunto %in% asignaturas)
+		stop("Si grupo es \"Asignatura\", subconjunto debe serlo también.")
+
 	dpto    <- grupo == "Departamento"
 	formula <- as.formula(paste("~", y, "+", x))
 
@@ -88,6 +114,7 @@ Tabular <- function(x, y, grupo, subconjunto, tablaLatex=FALSE) {
 
         L <- if(tablaLatex) TablaLatex(L) else L	
 
+	return(L)
 }
 
 TablaLatex <- function(tablas) {
@@ -95,13 +122,13 @@ TablaLatex <- function(tablas) {
 	# @ list(table) -> list(xtable)
 	tt <- lapply(tablas, xtable, digits=0, type="latex")
 
-	# Da títulos a las tablas (LaTeX requiere ademas títulos sin guiones) 
+	# Da títulos a las tablas (LaTeX requiere títulos sin guiones) 
 	for (i in 1:length(tt))
 		attr(tt[[i]], "caption") <- SinGuiones(names(tt)[[i]])
 	return(tt)
 }
 
-GuardarTabla <- function(tablas, fichero, directorio="tablas") {
+GuardarTabla <- function(tablas, fichero="tabla", directorio="tablas") {
 	# Guarda la tabla latex
 	# @ list(xtable) -> IO
 	if (!"xtable" %in% class(tablas[[1]])) 
@@ -122,88 +149,19 @@ GuardarTabla <- function(tablas, fichero, directorio="tablas") {
 }
 
 ## FUNCIONES GENÉRICAS
-Mostrar <- function(objeto) {
-	# Muestra objeto (un envoltorio de conveniencia para usuario)
-	print(objeto)
-}
-
-Guardar <- function(fc) {
-	# Guarda en disco el resultado de aplicar una funcion de
-	# graficación o tabulación
-	# La implementación se basa en la siguiente estrategia:
-	# 1. Obtiene de la llamada a función (fc) los datos precisos
-	#    para producir un nombre de fichero apropiado.
-	# 2. Evalúa la llamada a función y pasa el resultado a funciones
-	#    especializadas para guardar gráficos o tablas.
-	mc <- match.call()
-	mf <- mc[[-1]] # La función llamada
-
-	c <- as.character(mf) 
-	fun  <- c[1] 
-	args <- c[-1] 
-
-	if (fun == "Tabular")
-	    params <- names(formals(Tabular))
-	if (fun == "Graficar")
-	    params <- names(formals(Graficar))
-
-	# Menos params cuando no todos los argumentos posibles fueron pasados
-	if (length(args) != length(params))
-	    params <- params[1:length(args)]
-
-	# args limpios: sin signos de llamadas internas a funciones
-	aL <- mapply(function(p, r, x) gsub(p, r, x), "[[:punct:]]", "", args)
-	names(aL) <- params
-
-	# Construye nombre de fichero
-	nombreFichero <- paste(aL["y"], "Por", aL["x"], "_", aL["grupo"], "_", 
-			       aL["subconjunto"], sep="")
-
-	# Llama a la funcion especializada
-	if (fun == "Tabular")
-		GuardarTabla(eval(mf), nombreFichero)
-	if (fun == "Graficar")
-		GuardarGrafico(eval(mf), nombreFichero)
-}
+Guardar <- function(objeto, nombreFichero) {
+	# Guarda objeto (Wrapper)
+	# @ list(table) | ggplot -> funcall
+	if (is.table(objeto[[1]]))
+		GuardarTabla(objeto, nombreFichero)
+	if (is.ggplot(objeto))
+		GuardarGrafico(objeto, nombreFichero)
+}	
 
 ## FUNCIONES COMPARTIDAS DE AYUDA
-InputValido <- function(input) {
-	# Verifica que el input es valido
-	# @ character -> boolean
-	input %in% asignaturas || input %in% departamentos
-}
-
-Seleccionar <- function(especialidad, dpto=TRUE, data=datos) {
-	# Selecciona las observaciones en los datos relativos a especialidad 
-	# Si los nombres de asignatura y departamento coinciden se selecciona
-	# por defecto el departamento, salvo que 'dpto' sea FALSE. 
-	# (se omiten NAs)
-	# @ character, data.frame -> data.frame | IO_Error
-	if (!InputValido(especialidad))
-		stop("Especialidad inexistente. Compruebe ortografía", 
-		     call.=TRUE)
-
-	variable <- DeterminarVariable(especialidad, dpto)
+Seleccionar <- function(especialidad, dpto, data=datos) {
+	variable <- ifelse(dpto, "Departamento", "Asignatura")
 	na.omit(data[data[[variable]] %in% especialidad, ])
-}
-
-# !!! TODO: Es esto todavía necesario?
-DeterminarVariable <- function(especialidad, dpto=TRUE) {
-	# Determina si la especilidad dada es una asignatura o un departamento
-	# Si es ambas cosas y dpto=TRUE (por defecto) se considera departamento;
-	# asignatura en caso contrario.
-	# ASUME: input valido = es una asignatura o departamento
-	# @ character -> character
-	if (!especialidad %in% asignaturas)
-		res <- "Departamento"	
-	else if (!especialidad %in% departamentos)
-		res <- "Asignatura"
-	else if (dpto == TRUE)
-		res <- "Departamento"
-	else
-		res <- "Asignatura"
-
-	res
 }
 
 AsignaturasEn <- function(departamento, data=datos) {
@@ -211,9 +169,10 @@ AsignaturasEn <- function(departamento, data=datos) {
 	# (Se omiten observaciones con NA en Nota para evitar introducir
 	# asignaturas cuyos alumnos no hayan sido actualmente evaluados)
 	# @ character -> factor
-	if (!InputValido(departamento)) {
-		stop("Departamento inexistente. Compruebe ortografía", 
-		     call.=TRUE)
+	
+	# !!! TODO: Modificar cuando Generic Error Handling se implemente
+	if (!departamento %in% departamentos) {
+		stop("Departamento inexistente.")
 	}
 		
 	unique(with(data, 
