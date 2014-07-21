@@ -78,7 +78,7 @@ GenerarFicheroTex <- function(fichero) {
 		      \\usepackage{booktabs}\n
 		      \\renewcommand{\\arraystretch}{1.3}
 		      \\pagestyle{empty}\n
-		      \\title{Gráficos y Tablas}
+		      \\title{Informe}
 		      \\begin{document}
 		      \\maketitle
 		      ")
@@ -142,36 +142,11 @@ TablasNoFlotantes <- function(fichero) {
 	# que contiene muchas tablas como es el requerido para el informe.]
 	lineas <- readLines(fichero)
 
-	lineas <- gsub("(.*)\\{table\\}.*", "\\1{center}", lineas)
+	lineas <- gsub("(.*)\\{table\\}.*", "\\\\vspace{1em}\n\\1{center}", lineas)
         lineas <- gsub("\\\\centering", "", lineas)
 	lineas <- gsub("caption", "captionof{table}", lineas)
+	lineas <- gsub("(\\\\captionof.*)", "\\\\nopagebreak[4]\\1", lineas)
 
 	writeLines(lineas, fichero)
 }
-
-
-TablasNoFlotantesOLD <- function(fichero) {
-	# Elimina tablas flotantes del contenido del fichero pero mantiene título
-	#
-	# [Es más fácil modificar aquí las cosas con este hack. La razón
-	# es que pdflatex produce "too many floats" si el documento contiene
-	# muchas tablas flotantes. Sin embargo es necesario
-	# mantener la 'caption' de las tablas generadas por xtable para
-	# convertirla en 'caption' de los entornos 'tabular'.
-	# Esto sólo es posible en la actual implementación dejando que
-	# print.xtable (función 'Guardar') genere flotantes en primera
-	# instancia y modificando el resultado para el caso de un documento
-	# que contiene muchas tablas como es el requerido para el informe.]
-	zz <- file(fichero, "r")
-	lineas <- readLines(zz)
-	lineas <- gsub("(.*)\\{table\\}.*", "\\1{center}", lineas)
-        lineas <- gsub("\\\\centering", "", lineas)
-	lineas <- gsub("caption", "captionof{table}", lineas)
-	close(zz)
-
-	zz <- file(fichero, "w")
-	writeLines(lineas, zz)
-	close(zz)
-}
-
 
