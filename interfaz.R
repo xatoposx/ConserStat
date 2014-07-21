@@ -49,13 +49,21 @@ function(estadistica="AprobadoPorCurso", desglosar=FALSE) {
 GenerarInforme <- function(nombreInforme="informe.tex") {
 	# Genera un informe en pdf
 
+        # Tablas
 	GenerarTablasParaMemoria(desglosar=TRUE)
+	lapply(dir("./tablas", full.names=TRUE), TablasNoFlotantes)
+
+        # Graficos
 	GenerarGraficosParaMemoria(desglosar=TRUE)
 
-	lapply(dir("./tablas"), TablasNoFlotantes)
+        # Fichero LaTeX
 	GenerarFicheroTex(nombreInforme)
 
-#	knit2pdf(nombreInforme)
+        # Fichero pdf
+	# knit ignora 'compiler' por el momento
+	#knit2pdf(nombreInforme, compiler="pdflatex")
+        system(command="pdflatex informe.tex")
+
 }
 
 GenerarFicheroTex <- function(fichero) {
@@ -66,6 +74,7 @@ GenerarFicheroTex <- function(fichero) {
 		      \\usepackage[utf8]{inputenc}
 		      \\usepackage[spanish]{babel}
 		      \\usepackage{graphicx}
+                      \\usepackage{capt-of}
 		      \\usepackage{booktabs}\n
 		      \\renewcommand{\\arraystretch}{1.3}
 		      \\pagestyle{empty}\n
@@ -131,19 +140,38 @@ TablasNoFlotantes <- function(fichero) {
 	# print.xtable (función 'Guardar') genere flotantes en primera
 	# instancia y modificando el resultado para el caso de un documento
 	# que contiene muchas tablas como es el requerido para el informe.]
-	ruta <- file.path("tablas", fichero)
+	lineas <- readLines(fichero)
 
-	zz <- file(ruta, "r")
+	lineas <- gsub("(.*)\\{table\\}.*", "\\1{center}", lineas)
+        lineas <- gsub("\\\\centering", "", lineas)
+	lineas <- gsub("caption", "captionof{table}", lineas)
+
+	writeLines(lineas, fichero)
+}
+
+
+TablasNoFlotantesOLD <- function(fichero) {
+	# Elimina tablas flotantes del contenido del fichero pero mantiene título
+	#
+	# [Es más fácil modificar aquí las cosas con este hack. La razón
+	# es que pdflatex produce "too many floats" si el documento contiene
+	# muchas tablas flotantes. Sin embargo es necesario
+	# mantener la 'caption' de las tablas generadas por xtable para
+	# convertirla en 'caption' de los entornos 'tabular'.
+	# Esto sólo es posible en la actual implementación dejando que
+	# print.xtable (función 'Guardar') genere flotantes en primera
+	# instancia y modificando el resultado para el caso de un documento
+	# que contiene muchas tablas como es el requerido para el informe.]
+	zz <- file(fichero, "r")
 	lineas <- readLines(zz)
-	lineas <- gsub(".*\\{table\\}.*", "", lineas)
+	lineas <- gsub("(.*)\\{table\\}.*", "\\1{center}", lineas)
+        lineas <- gsub("\\\\centering", "", lineas)
 	lineas <- gsub("caption", "captionof{table}", lineas)
 	close(zz)
-	unlink(ruta)
 
-	zz <- file(ruta, "w")
+	zz <- file(fichero, "w")
 	writeLines(lineas, zz)
 	close(zz)
-	unlink(ruta)
 }
 
 
