@@ -1,8 +1,12 @@
 ## FUNCIONES DE INTERFAZ DE USUARIO (GENERACIÓN DE FICHEROS PARA MEMORIA)
 library(knitr)
 source("explorar.R")
-
+# !!! TODO - Support (at the inteface level) different types of latex output
+#            (desglosar, sin_desglosar).
+# !!! TODO - Rethink LaTeX output (even with '\nopagebreak', captions are
+#            still shifted to the next page).
 # !!! TODO - Generalize to avoid code repetition
+# !!! TODO - Revise png options for one-file/one-col ggplots: wrong dimensions.
 GenerarGraficosParaMemoria <- 
 function(estadistica="AprobadoPorCurso", tipoGrafico="apilado", desglosar=FALSE) {
 	# Genera imágenes PNG para la memoria y los guarda en disco
@@ -46,15 +50,15 @@ function(estadistica="AprobadoPorCurso", desglosar=FALSE) {
 	mapply(Guardar, tt, nf)
 }
 
-GenerarInforme <- function(nombreInforme="informe.tex") {
+GenerarInforme <- function(nombreInforme="informe.tex", desglosar=TRUE) {
 	# Genera un informe en pdf
 
         # Tablas
-	GenerarTablasParaMemoria(desglosar=TRUE)
+	GenerarTablasParaMemoria(desglosar=desglosar)
 	lapply(dir("./tablas", full.names=TRUE), TablasNoFlotantes)
 
         # Graficos
-	GenerarGraficosParaMemoria(desglosar=TRUE)
+	GenerarGraficosParaMemoria(desglosar=desglosar)
 
         # Fichero LaTeX
 	GenerarFicheroTex(nombreInforme)
@@ -122,9 +126,7 @@ GenerarSeccion <- function(fichero, tipoSeccion, tipoFichero) {
 		dir <- "tablas"
 
 	inclusionFichero <- paste(tag, "{", file.path(dir, fichero), "}", sep="")
-#	nuevaPagina <- "\\newpage"
 
-#	paste(tituloSeccion, "\n", inclusionFichero, "\n", nuevaPagina, "\n", sep="")
 	paste(tituloSeccion, "\n", inclusionFichero, "\n", sep="")
 }
 
