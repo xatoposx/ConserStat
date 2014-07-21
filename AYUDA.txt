@@ -1,0 +1,82 @@
+## INTERFAZ DE USUARIO
+
+### Instalación de R
+Se asume que el usuario tiene instaldo R con las librerías: `ggplot2`, `knitr`, `plyr` y `xtable`.
+
+Para más información sobre la instalación de R y librerías añadidas para R:
+
+http://cran.r-project.org/doc/manuals/r-release/R-admin.html
+
+### Uso básico
+Las dos usos habituales que soporta este programa son:
+
+1. Explorar los datos desde la consola de R.
+
+2. Imprimir un documento pdf con las tablas e imágenes requeridas
+
+### Comandos básicos 
+Para explorar datos es necesario previamente cargar el código correspondiente:
+
+`source("explorar.R")`
+
+Las opciones de exploración básicas soportados actualmente y los comandos correspondientes son los siguientes:
+
+#### Comandos para mostrar tablas
+
+**Uso**: Mostrar Tabla de Aprobados/Suspensos por Curso en una asignatura determinada (ejemplo: Piano):
+
+**Comando**: `Tabular("Curso", "Aprobado", "Asignatura", "Piano")`
+
+---
+
+**Uso**: Mostrar Tabla de Aprobados/Suspensos por Curso en un departamento determinado (ejemplo: Cuerda_Arco):
+
+**Comando**: `Tabular("Curso", "Aprobado", "Departamento", "Cuerda_Arco")`
+
+---
+
+**Uso**: Mostrar Tabla de Aprobados/Suspensos por Curso en un departamento desglosado por sus asignaturas (ejemplo: Teoría)
+
+**Comando** `Tabular("Curso", "Aprobado", "Asignatura", AsignaturasEn("Cuerda_Arco"))`
+
+---
+
+### Comandos para mostrar gráficos
+
+**Uso**: Mostrar Gráfico de Aprobados/Suspensos por Curso en una asignatura determinada (ejemplo: Piano):
+
+**Comando**: `Graficar("Curso", "Aprobado", "Asignatura", "Piano")`
+
+---
+
+**Uso**: Mostrar Gráfico de Aprobados/Suspensos por Curso en un departamento determinado (ejemplo: Cuerda_Arco):
+
+**Comando**: `Graficar("Curso", "Aprobado", "Departamento", "Cuerda_Arco")`
+
+---
+
+**Uso**: Mostrar Gráfico de Aprobados/Suspensos por Curso en un departamento, desglosado por sus asignaturas (ejemplo: Teoría)
+
+**Comando** `Graficar("Curso", "Aprobado", "Asignatura", AsignaturasEn("Teoría"))`
+
+---
+
+**Nota**: TIPOS DE GRÁFICO: A los comandos referidos se les puede añadir la opción `tipoGrafico`, que en la actualidad admite tres tipos de gráfico: "apilado", "agrupado", "polinomio", que corresponden a diagramas de barras apiladas, de barras agrupadas y polinomio de frecuencias, respectivamente. Por ejemplo:
+
+**Uso**: Mostrar polinomio de frecuencias de Aprobados por Curso en la Asignatura de Lenguaje_Musical
+**Comando**: `Graficar("Curso", "Aprobado", "Asignatura", "Lenguaje_Musical", tipoGrafico="polinomio")`
+
+### Generación de informe
+
+Se suministra soporte básico de generación de un informe con todas las tablas y gráficos de barras apiladas de Aprobados/Suspensos por Departamento.
+
+**Uso**: Generar informe de Aprobados/Suspensos por Curso en todos los departamentos, sin desglosar por sus asignaturas.
+
+**Comando**: `GenerarInforme("informe_sin_desglosar.tex", desglosar=FALSE)`
+
+---
+
+**Uso**: Generar informe de Aprobados/Suspensos por Curso en todos los departamentos, desglosados por sus asignaturas.
+
+**Comando**: `GenerarInforme("informe.tex")`
+
