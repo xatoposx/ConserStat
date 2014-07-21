@@ -182,7 +182,7 @@ AsignaturasEn <- function(departamento, data=datos) {
 
 SinGuiones <- function(palabras) {
 	# Substituye guiones por espacios
-	gsub("(.)[_-](.)", "\\1 \\2", palabras)
+	gsub("[[:punct:]]", " ", palabras)
 }
 
 # No usada en la actual implementacion. Se mantiene por conveniencia
