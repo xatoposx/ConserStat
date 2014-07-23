@@ -15,6 +15,7 @@ asignaturas <- levels(asignaturasDF$Asignatura)
 
 # Número de columnas en graficos ggplot con facetas 
 ncolFacets <- 2
+#update_geom_defaults("bar", list(fill= "Blue"))
 
 ## FUNCIONES PARA GRÁFICOS
 ## RATIONALE (this iteration). Since 'Graficar' won't be a UI function, simplicity,
@@ -46,7 +47,6 @@ Graficar <- function(x, y, grupo, subconjunto, tipoGrafico="apilado") {
 	if (grupo == "Asignatura" && !subconjunto %in% asignaturas)
 		stop("Si grupo es \"Asignatura\", subconjunto debe ser una asignatura.")
 
-	MAX_OBS   <- 50 
 	dpto      <- grupo == "Departamento"
 	seleccion <- Seleccionar(subconjunto, dpto=dpto)
 
@@ -54,6 +54,7 @@ Graficar <- function(x, y, grupo, subconjunto, tipoGrafico="apilado") {
 	faceta  <- facet_wrap(formula, ncol=ncolFacets, scales="fixed")
 	escalaX <- NULL 
 	escalaY <- NULL 
+	leyenda <- NULL
 
 	g <- ggplot(seleccion, aes_string(x=x))
 
@@ -77,6 +78,7 @@ Graficar <- function(x, y, grupo, subconjunto, tipoGrafico="apilado") {
 	if (x == "Curso" && y == "Aprobado") {
 		geom     <- geom_bar(aes(fill=Aprobado), position="stack")
 		etiqueta <- labs(y="Número de alumnos")
+		leyenda  <- guides(fill=guide_legend(reverse=TRUE))
 	}	
 	
 	if (x == "Curso" && y == "Nota") {
@@ -84,7 +86,8 @@ Graficar <- function(x, y, grupo, subconjunto, tipoGrafico="apilado") {
 		etiqueta <- labs(y="Nota")
 	}
 
-	g <- g + geom + etiqueta + faceta + escalaX + escalaY
+	g <- g + geom + etiqueta + faceta + escalaX + escalaY + leyenda
+
 	return(g)
 }
 
