@@ -8,13 +8,13 @@
 * `Asignaturas.txt`: Asocia el código de asignatura (tal como aparece en los datos brutos) con su nombre legible.
 * `Calificaciones 2013_2014.txt`: Datos brutos suministrados por Codex. (Ausente en la rama pública).
 * `Departamentos.txt`: Asocia el código de asignatura con el nombre del departamento a que pertenece. 
-* `README.txt`: Este documento.
 * `LEEME.md`: The actual README (in Spanish).
+* `README.txt`: Este documento.
 * `explorar.R`: Funciones para análisis exploratorio de datos.
 * `imprimir.R`: Funciones para impresión de informe en pdf.
-* `interfaz.R`: Wrappers de interfaz de usuario.
 * `informe.tex`: Fichero LaTeX generado para el informe. (Ausente en la rama publica).
 * `informe.pdf`: Informe final. (Ausente en la rama pública).
+* `interfaz.R`: Wrappers de interfaz de usuario.
 * `limpiar.R`: Script para limpiar datos brutos.
 * `notas_2013_2014.csv`: Datos limpios. Ver *Descripción de Variables* más abajo. (Ausente en la rama pública).
 
