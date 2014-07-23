@@ -43,8 +43,8 @@ departamentosDF <- read.csv("Departamentos.txt")
 notas2013 <- merge(notas2013, departamentosDF, by.x="ASIGNATURA", by.y="Asignatura")
 
 # Añade columna Aprobado
-notas2013$Aprobado <- factor(notas2013$NOTA_EXAME >= 5, levels=c(TRUE, FALSE), 
-			     labels=c("SÍ", "NO"))
+notas2013$Aprobado <- factor(notas2013$NOTA_EXAME >= 5, levels=c(FALSE, TRUE), 
+			     labels=c("NO", "SÍ"))
 
 # Añade columna 'CursoGrado' (CURSO+GRADO)
 cursoGrado <- Reduce(function(x, y) paste(x, y, sep=""), 
