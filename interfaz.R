@@ -17,8 +17,8 @@ MostrarAprobadosPorCursoEnDepartamento <- function(departamento, desglosar=TRUE)
 	if (desglosar) {
 		print(Tabular("Curso", "Aprobado", "Asignatura", 
 			      AsignaturasEn(departamento)))
-		print(Graficar("Curso", "Aprobado", "Asignatura", 
-			      AsignaturasEn(departamento)))
+		Graficar("Curso", "Aprobado", "Asignatura", 
+			      AsignaturasEn(departamento))
 	} else {
 		print(Tabular("Curso", "Aprobado", "Departamento", departamento))
 		Graficar("Curso", "Aprobado", "Departamento", departamento)
