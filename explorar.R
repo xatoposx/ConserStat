@@ -17,37 +17,74 @@ asignaturas <- levels(asignaturasDF$Asignatura)
 ncolFacets <- 2
 
 ## FUNCIONES PARA GRÁFICOS
+## RATIONALE (this iteration). Since 'Graficar' won't be a UI function, simplicity,
+##           flexibiliy, and genericity are not a total must-have for the time being. 
+##           Moreover, and even more important is the fact that intended use cases
+##           are limited. So it seems reasonable for the sake of easier implementation
+##           to require that 'x', 'y', 'grupo' and 'subconjunto' are non-optional args
+##           and handle each combination of these values case by case mostly. 
+##           As a particular preminent consequence one-variable exploration must be 
+##           called by passing NULL explicitly for 'y'
 Graficar <- function(x, y, grupo, subconjunto, tipoGrafico="apilado") {	
-	# Produce gráfico y versus x con facetas por grupo sobre una
-	# selección de los datos por el subconjunto dado
-	# @ string, string, string, string, string -> ggplot
+	# Produce gráfico con facetas por grupo sobre una selección de los datos 
+	# por el subconjunto dado
+	# @ string, string | NULL, string, string, string -> ggplot
 	# Ejemplo: Graficar("Curso", "Aprobado", "Asignatura", "Piano", "apilado")
 
 	# Manejo de errores 
 	# TODO!!! separar a función genérica y refinar según casos de uso
-	if (!all(c(x, y, grupo) %in% names(datos)))
-		stop("Los datos no contienen alguna de las variables x, y, grupo.")
+	if (!x %in% names(datos))
+		stop("La variable \"", x, "\" no existe.")
+	if (!is.null(y) && !y %in% names(datos))
+		stop("La variable \"", y, "\" no existe.")
+	if (!all(c(grupo) %in% names(datos)))
+		stop("La variable \"", grupo, "\" no existe.")
 	if (!(subconjunto %in% asignaturas || subconjunto %in% departamentos))
-		stop("La especialidad no existe en departamentos o asignaturas")
+		stop("\"", subconjunto, "\" no es ni una asignatura ni un departamento.")
 	if (grupo == "Departamento" && !subconjunto %in% departamentos)
-		stop("Si grupo es \"Departamento\", subconjunto debe serlo también.")
+		stop("Si grupo es \"Departamento\", subconjunto debe ser un departamento.")
 	if (grupo == "Asignatura" && !subconjunto %in% asignaturas)
-		stop("Si grupo es \"Asignatura\", subconjunto debe serlo también.")
+		stop("Si grupo es \"Asignatura\", subconjunto debe ser una asignatura.")
 
-	dpto    <- grupo == "Departamento"
+	MAX_OBS   <- 50 
+	dpto      <- grupo == "Departamento"
+	seleccion <- Seleccionar(subconjunto, dpto=dpto)
+
 	formula <- as.formula(paste("~", grupo))
+	faceta  <- facet_wrap(formula, ncol=ncolFacets, scales="fixed")
+	escalaX <- NULL 
+	escalaY <- NULL 
 
-	g <- ggplot(Seleccionar(subconjunto, dpto=dpto), aes_string(x=x, fill=y)) +
-	facet_wrap(formula, ncol=ncolFacets, scales="fixed") +
-	labs(y="Número de Alumnos")
+	g <- ggplot(seleccion, aes_string(x=x))
 
-	if (tipoGrafico == "apilado")
-		g <- g + geom_bar(position="stack")
-	else if (tipoGrafico == "agrupado")
-		g <- g + geom_bar(position="dodge")
-	else if (tipoGrafico == "polinomio")
-		g <- g + geom_freqpoly(aes_string(group=grupo, colour=grupo))
+	# Una variable
+	if (is.null(y) && x == "Nota") {
+		if (grupo == "Asignatura" || grupo == "Departamento") {
+			geom <- geom_histogram(aes(y=..count..))
+			etiqueta <- labs(y="Número de observaciones")
+		}
 
+		if (grupo == "Curso") {
+			geom <- geom_density() 
+			etiqueta <- labs(y="Frecuencia")
+		}
+
+		escalaX  <- scale_x_discrete(breaks=as.character(1:10), 
+					     limits=as.character(1:10))
+	}
+
+	# Dos variables
+	if (x == "Curso" && y == "Aprobado") {
+		geom     <- geom_bar(aes(fill=Aprobado), position="stack")
+		etiqueta <- labs(y="Número de alumnos")
+	}	
+	
+	if (x == "Curso" && y == "Nota") {
+		geom     <- geom_boxplot(aes(y=Nota))
+		etiqueta <- labs(y="Nota")
+	}
+
+	g <- g + geom + etiqueta + faceta + escalaX + escalaY
 	return(g)
 }
 
@@ -88,7 +125,7 @@ AtributosPng <- function(grafico) {
 }
 
 ## FUNCIONES PARA TABLAS
-Tabular <- function(x, y, grupo, subconjunto, tablaLatex=FALSE) {
+Tabular <- function(x, y=NULL, grupo, subconjunto, tablaLatex=FALSE) {
 	# Produce tabla y versus x por grupo sobre una selección de los 
 	# datos por el subconjunto dado
 	# @ string, string, string, string, boolean -> table | xtable
@@ -96,8 +133,8 @@ Tabular <- function(x, y, grupo, subconjunto, tablaLatex=FALSE) {
 
 	# Manejo de errores 
 	# TODO!!! separar a función genérica y refinar según casos de uso
-	if (!all(c(x, y, grupo) %in% names(datos)))
-		stop("Los datos no contienen alguna de las variables x, y, grupo.")
+#	if (!all(c(x, y, grupo) %in% names(datos)))
+#		stop("Los datos no contienen alguna de las variables x, y, grupo.")
 	if (!(subconjunto %in% asignaturas || subconjunto %in% departamentos))
 		stop("La especialidad no existe en departamentos o asignaturas")
 	if (grupo == "Departamento" && !subconjunto %in% departamentos)
